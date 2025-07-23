@@ -22,6 +22,8 @@ function AppContent() {
 		// State
 		starters,
 		recipes,
+		loading,           // ← Add this
+		error,             // ← Add this
 		newFeeding,
 		newNote,
 		activeStarter,
@@ -56,10 +58,12 @@ function AppContent() {
 		deleteFeeding,
 		editNote,
 		deleteNote,
+		clearError,        // ← Add this
 	} = useSourdoughTracker()
 
 	const activeStarterData = getActiveStarterData()
 
+	// All hooks must come before any early returns
 	useEffect(() => {
 		// Request notification permission when app loads
 		const setupNotifications = async () => {
@@ -73,6 +77,50 @@ function AppContent() {
 		
 		setupNotifications()
 	  }, [requestNotificationPermission])
+
+	// Add loading state handling AFTER all hooks
+	if (loading) {
+		return (
+			<AppLayout>
+				<div className="flex items-center justify-center min-h-screen">
+					<div className="text-center">
+						<div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600 mx-auto mb-4"></div>
+						<p className="text-amber-600">Loading your sourdough data...</p>
+					</div>
+				</div>
+			</AppLayout>
+		)
+	}
+
+	// Add error state handling AFTER all hooks
+	if (error) {
+		return (
+			<AppLayout>
+				<div className="flex items-center justify-center min-h-screen">
+					<div className="text-center">
+						<div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md mx-auto">
+							<h2 className="text-red-800 font-semibold mb-2">Connection Error</h2>
+							<p className="text-red-600 mb-4">{error}</p>
+							<div className="space-x-2">
+								<button
+									onClick={clearError}
+									className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+								>
+									Try Again
+								</button>
+								<button
+									onClick={() => navigate('/dashboard')}
+									className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+								>
+									Go to Dashboard
+								</button>
+							</div>
+						</div>
+					</div>
+				</div>
+			</AppLayout>
+		)
+	}
 
 	// Recipe management functions
 	const addNewRecipe = (recipeData: Omit<Recipe, 'id' | 'bakingHistory'>) => {
@@ -153,19 +201,32 @@ function AppContent() {
 		console.log('Active starter changed to:', starterId)
 	}
 
-	const handleAddNewStarter = () => {
-		addNewStarter()
-		console.log('New starter added')
+	// Update these handlers to handle async operations
+	const handleAddNewStarter = async () => {
+		try {
+			await addNewStarter()
+			console.log('New starter added')
+		} catch (err) {
+			console.error('Failed to add new starter:', err)
+		}
 	}
 
-	const handleDeleteStarters = (starterIds: number[]) => {
-		deleteStarters(starterIds)
-		console.log('Deleted starters:', starterIds)
+	const handleDeleteStarters = async (starterIds: number[]) => {
+		try {
+			await deleteStarters(starterIds)
+			console.log('Deleted starters:', starterIds)
+		} catch (err) {
+			console.error('Failed to delete starters:', err)
+		}
 	}
 
-	const handleToggleFavorite = (starterId: number) => {
-		toggleFavorite(starterId)
-		console.log('Toggled favorite for starter:', starterId)
+	const handleToggleFavorite = async (starterId: number) => {
+		try {
+			await toggleFavorite(starterId)
+			console.log('Toggled favorite for starter:', starterId)
+		} catch (err) {
+			console.error('Failed to toggle favorite:', err)
+		}
 	}
 
 	const handleEditStarter = (starterId: number) => {
@@ -176,9 +237,13 @@ function AppContent() {
 		console.log('Editing starter:', starterId)
 	}
 
-	const handleDuplicateStarter = (starterId: number) => {
-		duplicateStarter(starterId)
-		console.log('Duplicated starter:', starterId)
+	const handleDuplicateStarter = async (starterId: number) => {
+		try {
+			await duplicateStarter(starterId)
+			console.log('Duplicated starter:', starterId)
+		} catch (err) {
+			console.error('Failed to duplicate starter:', err)
+		}
 	}
 
 	const handleViewRecipeFromPopup = (recipeId: number) => {
