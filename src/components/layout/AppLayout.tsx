@@ -103,7 +103,7 @@ const AppLayout: React.FC<AppLayoutProps> = ({
                         >
                             <Wheat className="text-2xl text-amber-600" size={24} />
                             <h1 className="text-xl font-bold text-amber-900">
-                                Chimi's Bread Lab
+                                Bread Lab Baker
                             </h1>
                         </button>
 

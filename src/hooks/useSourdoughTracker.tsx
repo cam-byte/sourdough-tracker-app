@@ -7,7 +7,7 @@ export const useSourdoughTracker = () => {
 	const [starters, setStarters] = useLocalStorage<Starter[]>('bread-lab-starters', [
 		{
 			id: 1,
-			name: "Gertrude",
+			name: "Starter #1",
 			created: new Date().toISOString().split("T")[0],
 			lastFed: new Date().toISOString().split("T")[0],
 			feedingSchedule: 24,

@@ -29,7 +29,7 @@ const AddRecipe: React.FC<AddRecipeProps> = ({ onSaveRecipe }) => {
 
 	return (
 		<motion.div
-			className="max-w-2xl mx-auto space-y-8 !mt-8"
+			className="max-w-2xl mx-auto space-y-8 p-8 !mt-8"
 			variants={containerVariants}
 			initial="hidden"
 			animate="visible"
