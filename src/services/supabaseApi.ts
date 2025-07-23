@@ -1,6 +1,6 @@
 // services/supabaseApi.ts
 import { supabase } from './supabase'
-import type { Starter, Feeding, Note, StarterDB, FeedingDB, NoteDB } from '../types'
+import type { Starter, Feeding, StarterDB, FeedingDB, NoteDB } from '../types'
 
 class SupabaseApiService {
   // Helper function to transform DB starter to app starter
@@ -132,7 +132,7 @@ class SupabaseApiService {
 
     dbUpdates.updated_at = new Date().toISOString()
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('starters')
       .update(dbUpdates)
       .eq('id', id)

@@ -1,18 +1,14 @@
-import type { LucideIcon } from "lucide-react"
-
-interface FancyInputProps {
+interface InputProps {
 	label: string
-	type?: 'text' | 'number' | 'email' | 'password'
-	value: string | number
-	onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
-	placeholder?: string
-	icon?: LucideIcon
-	min?: string
-	max?: string
-	step?: string
+  placeholder?: string
+  value: string | number
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+  type?: 'text' | 'number' | 'email' | 'password' | 'date' | 'time' // ← Add date and time
+  required?: boolean // ← Add required
+  className?: string
 }
 
-const Input: React.FC<FancyInputProps> = ({ 
+const Input: React.FC<InputProps> = ({ 
   label, 
   type = "text", 
   value, 

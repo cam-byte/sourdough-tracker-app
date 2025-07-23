@@ -1,13 +1,13 @@
 import type { LucideIcon } from "lucide-react"
 
 export interface SelectOption {
-    value: string
+    value: string | number
     label: string
 }
 
 interface SelectProps {
     label: string
-    value: string
+    value: string | number
     onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
     options: SelectOption[]
     icon?: LucideIcon
