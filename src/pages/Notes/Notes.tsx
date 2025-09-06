@@ -70,7 +70,7 @@ const Notes: React.FC<NotesProps> = ({
 			<motion.div className="space-y-6" variants={itemVariants}>
 				<h2 className="text-2xl font-semibold text-amber-900">All Notes</h2>
 
-				{starter.notes.length === 0 ? (
+				{starter.notes?.length === 0 ? (
 					<div className="bg-white rounded-3xl border-2 border-dashed border-amber-200 p-12 text-center">
 						<StickyNote className="text-amber-300 mx-auto mb-4" size={48} />
 						<h3 className="text-xl font-semibold text-amber-900 mb-2">No notes yet</h3>
@@ -79,7 +79,7 @@ const Notes: React.FC<NotesProps> = ({
 				) : (
 					<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 						<AnimatePresence>
-							{starter.notes.map((note, index) => (
+							{starter.notes?.map((note, index) => (
 								<NoteCard 
 									key={note.id} 
 									note={note} 

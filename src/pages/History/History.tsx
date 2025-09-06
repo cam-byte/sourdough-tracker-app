@@ -42,7 +42,7 @@ const History: React.FC<HistoryProps> = ({
 			</motion.div>
 
 			<motion.div className="space-y-6" variants={itemVariants}>
-				{starter.feedingHistory.length === 0 ? (
+				{starter.feedingHistory?.length === 0 ? (
 					<div className="bg-white rounded-3xl border-2 border-dashed border-amber-200 p-12 text-center">
 						<HistoryIcon className="text-amber-300 mx-auto mb-4" size={48} />
 						<h3 className="text-xl font-semibold text-amber-900 mb-2">No feedings recorded</h3>

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import supabaseApi from '../services/supabaseApi' // ← Changed import
+import api from '../services/api'
 import type { Starter, Recipe, NewFeeding, NewBaking, ViewType, Feeding, Note } from '../types'
+import { useAuth } from './useAuth'
+
 
 export const useSourdoughTracker = () => {
 	// State for data from MongoDB
@@ -8,6 +10,7 @@ export const useSourdoughTracker = () => {
 	const [recipes, setRecipes] = useState<Recipe[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+    const { user } = useAuth()
 
 	// UI state (not persisted - resets on refresh)
 	const [uiState, setUiState] = useState({
@@ -59,7 +62,7 @@ export const useSourdoughTracker = () => {
 		try {
 			setLoading(true)
 			setError(null)
-			const startersData = await supabaseApi.getStarters() // ← Changed to supabaseApi
+			const startersData = await api.getAllStarters() // ← Changed to api
 			setStarters(startersData)
 			
 			// Set active starter if none is set
@@ -143,7 +146,7 @@ export const useSourdoughTracker = () => {
 	// Refresh single starter data
 	const refreshStarter = async (starterId: number) => {
 		try {
-			const updatedStarter = await supabaseApi.getStarter(starterId) // ← Changed to supabaseApi
+			const updatedStarter = await api.getStarter(starterId) // ← Changed to api
 			setStarters(prev => prev.map(s => s.id === starterId ? updatedStarter : s))
 		} catch (err) {
 			console.error('Error refreshing starter:', err)
@@ -164,7 +167,7 @@ export const useSourdoughTracker = () => {
 				temp: newFeeding.temp
 			}
 
-			await supabaseApi.addFeeding(uiState.activeStarter, feedingData)
+			await api.addFeeding(uiState.activeStarter, feedingData)
 			await refreshStarter(uiState.activeStarter)
 
 			// Reset form
@@ -189,7 +192,7 @@ export const useSourdoughTracker = () => {
 		if (!uiState.activeStarter) return
 
 		try {
-			await supabaseApi.updateFeeding(uiState.activeStarter, feedingId, updatedFeeding)
+			await api.updateFeeding(uiState.activeStarter, feedingId, updatedFeeding)
 			await refreshStarter(uiState.activeStarter)
 			updateUiState({ editingFeeding: null })
 		} catch (err) {
@@ -204,7 +207,7 @@ export const useSourdoughTracker = () => {
 		
 		if (window.confirm('Are you sure you want to delete this feeding record?')) {
 			try {
-				await supabaseApi.deleteFeeding(uiState.activeStarter, feedingId)
+				await api.deleteFeeding(uiState.activeStarter, feedingId)
 				await refreshStarter(uiState.activeStarter)
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Failed to delete feeding')
@@ -228,7 +231,7 @@ export const useSourdoughTracker = () => {
 		if (!newNote.trim() || !uiState.activeStarter) return
 
 		try {
-			await supabaseApi.addNote(uiState.activeStarter, newNote)
+			await api.addNote(uiState.activeStarter, newNote)
 			await refreshStarter(uiState.activeStarter)
 			setNewNote("")
 		} catch (err) {
@@ -242,7 +245,7 @@ export const useSourdoughTracker = () => {
 		if (!uiState.activeStarter) return
 
 		try {
-			await supabaseApi.updateNote(uiState.activeStarter, noteId, updatedText)
+			await api.updateNote(uiState.activeStarter, noteId, updatedText)
 			await refreshStarter(uiState.activeStarter)
 			updateUiState({ editingNote: null })
 		} catch (err) {
@@ -257,7 +260,7 @@ export const useSourdoughTracker = () => {
 		
 		if (window.confirm('Are you sure you want to delete this note?')) {
 			try {
-				await supabaseApi.deleteNote(uiState.activeStarter, noteId)
+				await api.deleteNote(uiState.activeStarter, noteId)
 				await refreshStarter(uiState.activeStarter)
 			} catch (err) {
 				setError(err instanceof Error ? err.message : 'Failed to delete note')
@@ -279,7 +282,8 @@ export const useSourdoughTracker = () => {
 	// Starter management functions
 	const addNewStarter = async (): Promise<void> => {
 		try {
-			const newStarter = await supabaseApi.createStarter({
+			const newStarter = await api.createStarter({
+                user_id: user ? user.id : 0,
 				name: `Starter #${starters.length + 1}`,
 				feedingSchedule: 24
 			})
@@ -296,7 +300,7 @@ export const useSourdoughTracker = () => {
 	const deleteStarters = async (starterIds: number[]): Promise<void> => {
 		try {
 			// Delete each starter from the database
-			await Promise.all(starterIds.map(id => supabaseApi.deleteStarter(id)))
+			await Promise.all(starterIds.map(id => api.deleteStarter(id)))
 			
 			// Update local state
 			const updatedStarters = starters.filter((s: Starter) => !starterIds.includes(s.id))
@@ -317,7 +321,7 @@ export const useSourdoughTracker = () => {
 			const starter = starters.find(s => s.id === starterId)
 			if (!starter) return
 
-			await supabaseApi.updateStarter(starterId, { isFavorite: !starter.isFavorite })
+			await api.updateStarter(starterId, { isFavorite: !starter.isFavorite })
 			await refreshStarter(starterId)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to update favorite')
@@ -330,7 +334,8 @@ export const useSourdoughTracker = () => {
 			const starterToDupe = starters.find((s: Starter) => s.id === starterId)
 			if (!starterToDupe) return
 
-			const duplicatedStarter = await supabaseApi.createStarter({
+			const duplicatedStarter = await api.createStarter({
+                user_id: user ? user.id : 0,
 				name: `${starterToDupe.name} (Copy)`,
 				feedingSchedule: starterToDupe.feedingSchedule
 			})
@@ -348,7 +353,7 @@ export const useSourdoughTracker = () => {
 		if (!targetId) return
 
 		try {
-			await supabaseApi.updateStarter(targetId, { name })
+			await api.updateStarter(targetId, { name })
 			await refreshStarter(targetId)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to update starter name')
@@ -361,8 +366,8 @@ export const useSourdoughTracker = () => {
 		if (!targetId) return
 
 		try {
-			await supabaseApi.updateStarter(targetId, { feedingSchedule: hours })
-			const updatedStarter = await supabaseApi.getStarter(targetId)
+			await api.updateStarter(targetId, { feedingSchedule: hours })
+			const updatedStarter = await api.getStarter(targetId)
 			setStarters(prev => prev.map(s => s.id === targetId ? updatedStarter : s))
 			scheduleNotification(updatedStarter)
 		} catch (err) {
@@ -377,7 +382,7 @@ export const useSourdoughTracker = () => {
 
 		try {
 			const recipeToUse = recipes.find((r: Recipe) => r.id === recipeId)
-			await supabaseApi.updateStarter(targetId, { 
+			await api.updateStarter(targetId, { 
 				recipe: recipeId ? recipeToUse || null : null 
 			})
 			await refreshStarter(targetId)
