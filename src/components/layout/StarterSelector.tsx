@@ -3,7 +3,6 @@ import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Plus, Star, X } from 'lucide-react'
 import type { Starter } from '../../types'
-import Button from '../ui/Button'
 
 interface StarterSelectorProps {
     starters: Starter[]
@@ -66,38 +65,45 @@ const StarterSelector: React.FC<StarterSelectorProps> = ({
                                     return (
                                         <motion.button
                                             key={starter.id}
-                                            className={`relative px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2 flex-shrink-0 ${
-                                                activeStarter === starter.id
+                                            className={`group relative px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap flex items-center gap-2 flex-shrink-0 overflow-hidden ${activeStarter === starter.id
                                                     ? 'bg-amber-500 text-white shadow-md'
                                                     : isFavorite
                                                         ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-amber-800 hover:from-yellow-200 hover:to-amber-200 border border-yellow-300'
                                                         : 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                                            }`}
+                                                }`}
                                             onClick={() => onActiveStarterChange?.(starter.id)}
-                                            whileHover={{ scale: 1.05 }}
+                                            whileHover={{
+                                                scale: 1.05,
+                                                paddingRight: '2rem', // Grow the button width
+                                                transition: { duration: 0.3, ease: 'easeOut' }
+                                            }}
                                             whileTap={{ scale: 0.95 }}
                                             layout
                                         >
                                             {/* Star icon for favorites */}
                                             {isFavorite && (
-                                                <Star 
-                                                    size={14} 
-                                                    className={`${activeStarter === starter.id ? 'text-white' : 'text-yellow-500'} fill-current`} 
+                                                <Star
+                                                    size={14}
+                                                    className={`${activeStarter === starter.id ? 'text-white' : 'text-yellow-500'} fill-current`}
                                                 />
                                             )}
                                             {starter.name}
                                             {starterOverdue && (
                                                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
                                             )}
-                                            <Button
-                                                className="text-xs"
-                                                variant="icon-only"
-                                                onClick={() => {
-                                                    onDeleteStarter?.(starter.id)
-                                                }}
-                                            >
-                                                <X className="text-red-300 fill-current" size={2}/>
-                                            </Button>
+
+                                            {/* X button - fades in as button grows */}
+                                            <div className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                                                <div
+                                                    className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center transition-colors cursor-pointer"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation()
+                                                        onDeleteStarter?.(starter.id)
+                                                    }}
+                                                >
+                                                    <X className="text-white transition-colors" size={12} />
+                                                </div>
+                                            </div>
                                         </motion.button>
                                     )
                                 })}

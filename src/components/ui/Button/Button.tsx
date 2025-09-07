@@ -33,7 +33,7 @@ const Button: React.FC<ButtonProps> = ({
 		ghost:
 			'text-amber-700 hover:text-amber-900 hover:bg-amber-50 focus:ring-amber-500 gap-2',
 		'icon-only':
-			'bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-200 focus:ring-amber-500 p-2 w-10 h-10', // no gap, fixed square size
+			'hover:bg-amber-200 text-amber-800 focus:ring-amber-500 p-2 w-10 h-10', // no gap, fixed square size
 	}
 
 	const sizes = {

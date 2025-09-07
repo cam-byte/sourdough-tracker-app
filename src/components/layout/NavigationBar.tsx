@@ -43,7 +43,7 @@ const NavigationBar: React.FC = () => {
                         onClick={() => navigate('/dashboard')}
                     >
                         <Wheat className="text-2xl text-amber-600" size={24} />
-                        <h1 className="text-xl font-bold text-amber-900">
+                        <h1 className="text-xl font-bold text-amber-900 hidden lg:block">
                             Bread Lab Baker
                         </h1>
                     </button>
