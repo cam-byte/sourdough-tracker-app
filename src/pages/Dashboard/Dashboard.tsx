@@ -22,6 +22,7 @@ import FeedingCard from "../../components/FeedingCard"
 import NoteCard from "../../components/NoteCard"
 import Button from "../../components/ui/Button"
 import Collapsible from "../../components/Collapsible"
+import { useEffect, useState } from "react"
 
 interface DashboardProps {
     starter: Starter
@@ -110,6 +111,25 @@ const timeUntilNextFeeding = (starter: Starter): string => {
     return `${diffMinutes}m`
 }
 
+const formatRemaining = (ms: number) => {
+    if (ms <= 0) return "Overdue!"
+    const totalSec = Math.floor(ms / 1000)
+    const h = Math.floor(totalSec / 3600)
+    const m = Math.floor((totalSec % 3600) / 60)
+    const s = totalSec % 60
+    if (h > 0) return `${h}h ${m}m ${s}s`
+    return `${m}m ${s}s`
+  }
+  
+  const computeRemainingMs = (starter: Starter) => {
+    if (!starter.lastFed) return NaN
+    const lastFed = new Date(starter.lastFed)
+    if (isNaN(lastFed.getTime())) return NaN
+    const next = new Date(lastFed.getTime() + starter.feedingSchedule * 60 * 60 * 1000)
+    return next.getTime() - Date.now()
+  }
+  
+
 const getHydrationPercentage = (feeding: Feeding): number => {
     return Math.round((feeding.water / feeding.flour) * 100)
 }
@@ -132,8 +152,27 @@ const Dashboard: React.FC<DashboardProps> = ({
     onDeleteNote,
     onDeleteStarter,
 }) => {
-    const timeLeft = timeUntilNextFeeding(starter)
-    const isOverdue = timeLeft === "Overdue!"
+    const [remainingMs, setRemainingMs] = useState<number>(() => computeRemainingMs(starter))
+
+    useEffect(() => {
+        // do an immediate sync to avoid 1s delay on mount
+        setRemainingMs(computeRemainingMs(starter))
+      
+        const id = setInterval(() => {
+          setRemainingMs(prev => {
+            // if we don't have a valid baseline, recompute
+            const fresh = computeRemainingMs(starter)
+            // Use fresh so changes to lastFed/feedingSchedule reflect instantly
+            return isNaN(fresh) ? prev : fresh
+          })
+        }, 1000)
+      
+        return () => clearInterval(id)
+      }, [starter.lastFed, starter.feedingSchedule])
+      
+      const timeLeft = isNaN(remainingMs) ? "Never fed" : formatRemaining(remainingMs)
+      const isOverdue = timeLeft === "Overdue!"
+
 
     return (
         <motion.div className="space-y-8 p-6" variants={containerVariants} initial="hidden" animate="visible">
