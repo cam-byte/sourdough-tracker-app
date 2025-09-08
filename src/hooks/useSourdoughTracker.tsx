@@ -3,603 +3,571 @@ import api from '../services/api'
 import type { Starter, Recipe, NewFeeding, NewBaking, ViewType, Feeding, Note } from '../types'
 import { useAuth } from './useAuth'
 
-
 export const useSourdoughTracker = () => {
-	// State for data from MongoDB
-    const { user, token, isAuthenticated } = useAuth()
-	const [starters, setStarters] = useState<Starter[]>([])
-	const [recipes, setRecipes] = useState<Recipe[]>([])
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
+  // State for data from MongoDB
+  const { user, token, isAuthenticated } = useAuth()
+  const [starters, setStarters] = useState<Starter[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-	// UI state (not persisted - resets on refresh)
-	const [uiState, setUiState] = useState({
-		activeStarter: null as number | null,
-		activeRecipe: null as number | null,
-		view: "dashboard" as ViewType,
-		showModal: false,
-		showStarterPopup: false,
-		searchTerm: "",
-		dateFilter: { start: "", end: "" },
-		selectedStarters: [] as number[],
-		editingFeeding: null as Feeding | null,
-		editingNote: null as Note | null,
-	})
+  // UI state (not persisted - resets on refresh)
+  const [uiState, setUiState] = useState({
+    activeStarter: null as number | null,
+    activeRecipe: null as number | null,
+    view: 'dashboard' as ViewType,
+    showModal: false,
+    showStarterPopup: false,
+    searchTerm: '',
+    dateFilter: { start: '', end: '' },
+    selectedStarters: [] as number[],
+    editingFeeding: null as Feeding | null,
+    editingNote: null as Note | null,
+  })
 
-	// Form states (not persisted)
-	const [newFeeding, setNewFeeding] = useState<NewFeeding>({
-		date: new Date().toISOString().split("T")[0],
-		time: new Date().toTimeString().slice(0, 5),
-		flour: 100,
-		flourType: "AP",
-		water: 100,
-		temp: 75,
-		note: "",
-	})
+  // Form states (not persisted)
+  const [newFeeding, setNewFeeding] = useState<NewFeeding>({
+    date: new Date().toISOString().split('T')[0],
+    time: new Date().toTimeString().slice(0, 5),
+    flour: 100,
+    flourType: 'AP',
+    water: 100,
+    temp: 75,
+    note: '',
+  })
 
-	const [newBaking, setNewBaking] = useState<NewBaking>({
-		date: new Date().toISOString().split("T")[0],
-		starterId: 0,
-		notes: "",
-		result: "",
-	})
+  const [newBaking, setNewBaking] = useState<NewBaking>({
+    date: new Date().toISOString().split('T')[0],
+    starterId: 0,
+    notes: '',
+    result: '',
+  })
 
-	const [newNote, setNewNote] = useState<string>("")
-	const [newRecipe, setNewRecipe] = useState<Partial<Recipe>>({
-		name: "",
-		ingredients: "",
-		instructions: "",
-		bakingHistory: [],
-	})
+  const [newNote, setNewNote] = useState<string>('')
+  const [newRecipe, setNewRecipe] = useState<Partial<Recipe>>({
+    name: '',
+    ingredients: '',
+    instructions: '',
+    bakingHistory: [],
+  })
 
-	// UI state update helper
-	const updateUiState = useCallback((updates: Partial<typeof uiState>) => {
-		setUiState(prev => ({ ...prev, ...updates }))
-	}, [])
+  // UI state update helper
+  const updateUiState = useCallback((updates: Partial<typeof uiState>) => {
+    setUiState(prev => ({ ...prev, ...updates }))
+  }, [])
 
-	// Data fetching functions
-	const fetchStarters = async () => {
-        try {
-            // Check if we have a token before attempting to fetch
-            if (!api.hasToken()) {
-                console.log('No token available, skipping starter fetch')
-                return
-            }
+  // Data fetching functions
+  const fetchStarters = async () => {
+    try {
+      if (!api.hasToken()) {
+        console.log('No token available, skipping starter fetch')
+        return
+      }
 
-            setLoading(true)
-            setError(null)
-            
-            console.log('Fetching starters...')
-            const startersData = await api.getAllStarters()
-            console.log('Fetched starters:', startersData.length)
-            setStarters(startersData)
-            
-            // Set active starter if none is set
-            if (startersData.length > 0 && !uiState.activeStarter) {
-                updateUiState({ activeStarter: startersData[0].id })
-            }
-        } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch starters'
-            setError(errorMessage)
-            console.error('Error fetching starters:', err)
-            
-            // If it's an auth error, don't keep retrying
-            if (errorMessage.includes('Authentication required') || errorMessage.includes('Session expired')) {
-                // User needs to log in again
-                console.log('Authentication error detected, user needs to log in')
-            }
-        } finally {
-            setLoading(false)
-        }
+      setLoading(true)
+      setError(null)
+
+      console.log('Fetching starters...')
+      const startersData = await api.getAllStarters()
+      console.log('Fetched starters:', startersData.length)
+      setStarters(startersData)
+
+      if (startersData.length > 0 && !uiState.activeStarter) {
+        updateUiState({ activeStarter: startersData[0].id })
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch starters'
+      setError(errorMessage)
+      console.error('Error fetching starters:', err)
+
+      if (errorMessage.includes('Authentication required') || errorMessage.includes('Session expired')) {
+        console.log('Authentication error detected, user needs to log in')
+      }
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Initial data load
+  const loadData = useCallback(async () => {
+    if (!isAuthenticated || !token) {
+      console.log('Not authenticated, skipping data load')
+      return
     }
 
+    if (!api.hasToken()) {
+      console.log('API service missing token, syncing...')
+      api.setToken(token)
+    }
 
-	const fetchRecipes = async () => {
-		try {
-			// Note: You'll need to implement recipe endpoints in your backend
-			// For now, keeping recipes in localStorage as fallback
-			const savedRecipes = localStorage.getItem('bread-lab-recipes')
-			if (savedRecipes) {
-				setRecipes(JSON.parse(savedRecipes))
-			} else {
-				// Default recipe
-				setRecipes([{
-					id: 1,
-					name: "Basic Sourdough Loaf",
-					ingredients: "500g bread flour\n350g water\n100g active starter\n10g salt",
-					instructions: "1. Mix flour, water, and starter. Let rest for 30 minutes.\n2. Add salt and knead briefly.\n3. Bulk ferment for 4-6 hours with folds every hour.\n4. Shape and cold proof overnight.\n5. Bake at 450°F for 20 minutes with lid on, 20 minutes with lid off.",
-					bakingHistory: [],
-				}])
-			}
-		} catch (err) {
-			console.error('Error fetching recipes:', err)
-		}
-	}
+    try {
+      setLoading(true)
+      await fetchStarters()
+    } catch (err) {
+      console.error('Error loading data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }, [isAuthenticated, token])
 
-	// Initial data load
-	const loadData = useCallback(async () => {
-        // Only load data if authenticated
-        if (!isAuthenticated || !token) {
-            console.log('Not authenticated, skipping data load')
-            return
-        }
+  useEffect(() => {
+    if (isAuthenticated && token) {
+      console.log('User authenticated, loading data...')
+      loadData()
+    } else if (!isAuthenticated) {
+      console.log('User not authenticated, clearing data')
+      setStarters([])
+      setError(null)
+    }
+  }, [isAuthenticated, token, loadData])
 
-        // Double-check API service has the token
-        if (!api.hasToken()) {
-            console.log('API service missing token, syncing...')
-            api.setToken(token)
-        }
+  // Set active starter when starters load
+  useEffect(() => {
+    if (starters.length > 0 && !uiState.activeStarter) {
+      updateUiState({ activeStarter: starters[0].id })
+    }
+  }, [starters, uiState.activeStarter, updateUiState])
 
-        try {
-            setLoading(true)
-            await Promise.all([
-                fetchStarters(),
-                // fetchRecipes() if you have it
-            ])
-        } catch (err) {
-            console.error('Error loading data:', err)
-        } finally {
-            setLoading(false)
-        }
-    }, [isAuthenticated, token])
+  // Helper functions
+  const getActiveStarterData = (): Starter | undefined => {
+    return starters.find((s: Starter) => s.id === uiState.activeStarter) || starters[0]
+  }
 
-    useEffect(() => {
-        if (isAuthenticated && token) {
-            console.log('User authenticated, loading data...')
-            loadData()
-        } else if (!isAuthenticated) {
-            // Clear data when logged out
-            console.log('User not authenticated, clearing data')
-            setStarters([])
-            setError(null)
-        }
-    }, [isAuthenticated, token, loadData])
+  const getActiveRecipeData = (): Recipe | undefined => {
+    const activeStarter = getActiveStarterData()
+    return activeStarter?.recipe || undefined
+  }
 
-	// Set active starter when starters load
-	useEffect(() => {
-		if (starters.length > 0 && !uiState.activeStarter) {
-			updateUiState({ activeStarter: starters[0].id })
-		}
-	}, [starters, uiState.activeStarter, updateUiState])
+  // Refresh single starter data
+  const refreshStarter = async (starterId: number) => {
+    try {
+      const updatedStarter = await api.getStarter(starterId)
+      setStarters(prev => prev.map(s => (s.id === starterId ? updatedStarter : s)))
+    } catch (err) {
+      console.error('Error refreshing starter:', err)
+    }
+  }
 
-	// Set active recipe when recipes load
-	useEffect(() => {
-		if (recipes.length > 0 && !uiState.activeRecipe) {
-			updateUiState({ activeRecipe: recipes[0].id })
-		}
-	}, [recipes, uiState.activeRecipe, updateUiState])
+  // Core feeding functions
+  const addFeeding = async (): Promise<void> => {
+    if (!uiState.activeStarter) return
 
-	useEffect(() => {
-		if (uiState.view === "editRecipe") {
-			const recipe = recipes.find((r) => r.id === uiState.activeRecipe)
-			if (recipe) {
-				setNewRecipe({
-					name: recipe.name,
-					ingredients: recipe.ingredients,
-					instructions: recipe.instructions,
-				})
-			}
-		}
-	}, [uiState.view, uiState.activeRecipe, recipes])
+    try {
+      const feedingData = {
+        flour: newFeeding.flour,
+        water: newFeeding.water,
+        notes: newFeeding.note,
+        flourType: newFeeding.flourType,
+        temp: newFeeding.temp,
+      }
 
-	// Helper functions
-	const getActiveStarterData = (): Starter | undefined => {
-		return starters.find((s: Starter) => s.id === uiState.activeStarter) || starters[0]
-	}
+      await api.addFeeding(uiState.activeStarter, feedingData)
+      await refreshStarter(uiState.activeStarter)
 
-	const getActiveRecipeData = (): Recipe | undefined => {
-		return recipes.find((r: Recipe) => r.id === uiState.activeRecipe) || recipes[0]
-	}
+      // Reset form
+      setNewFeeding({
+        date: new Date().toISOString().split('T')[0],
+        time: new Date().toTimeString().slice(0, 5),
+        flour: 100,
+        flourType: 'AP',
+        water: 100,
+        temp: 75,
+        note: '',
+      })
+      updateUiState({ view: 'dashboard' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add feeding')
+      console.error('Error adding feeding:', err)
+    }
+  }
 
-	// Refresh single starter data
-	const refreshStarter = async (starterId: number) => {
-		try {
-			const updatedStarter = await api.getStarter(starterId) // ← Changed to api
-			setStarters(prev => prev.map(s => s.id === starterId ? updatedStarter : s))
-		} catch (err) {
-			console.error('Error refreshing starter:', err)
-		}
-	}
+  const editFeeding = async (feedingId: number, updatedFeeding: Partial<Feeding>): Promise<void> => {
+    if (!uiState.activeStarter) return
 
-	// Core feeding functions
-	const addFeeding = async (): Promise<void> => {
-		if (!uiState.activeStarter) return
+    try {
+      await api.updateFeeding(uiState.activeStarter, feedingId, updatedFeeding)
+      await refreshStarter(uiState.activeStarter)
+      updateUiState({ editingFeeding: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update feeding')
+      console.error('Error updating feeding:', err)
+    }
+  }
 
-		try {
-			const feedingData = {
-				flour: newFeeding.flour,
-				water: newFeeding.water,
-				notes: newFeeding.note,
-				// You might want to store additional data like flourType, temp, etc.
-				flourType: newFeeding.flourType,
-				temp: newFeeding.temp
-			}
+  const deleteFeeding = async (feedingId: number): Promise<void> => {
+    if (!uiState.activeStarter) return
 
-			await api.addFeeding(uiState.activeStarter, feedingData)
-			await refreshStarter(uiState.activeStarter)
+    if (window.confirm('Are you sure you want to delete this feeding record?')) {
+      try {
+        await api.deleteFeeding(uiState.activeStarter, feedingId)
+        await refreshStarter(uiState.activeStarter)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete feeding')
+        console.error('Error deleting feeding:', err)
+      }
+    }
+  }
 
-			// Reset form
-			setNewFeeding({
-				date: new Date().toISOString().split("T")[0],
-				time: new Date().toTimeString().slice(0, 5),
-				flour: 100,
-				flourType: "AP",
-				water: 100,
-				temp: 75,
-				note: "",
-			})
-			updateUiState({ view: "dashboard" })
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to add feeding')
-			console.error('Error adding feeding:', err)
-		}
-	}
+  const startEditingFeeding = (feeding: Feeding): void => {
+    updateUiState({ editingFeeding: feeding })
+  }
 
-	// Edit feeding function
-	const editFeeding = async (feedingId: number, updatedFeeding: Partial<Feeding>): Promise<void> => {
-		if (!uiState.activeStarter) return
+  const cancelEditingFeeding = (): void => {
+    updateUiState({ editingFeeding: null })
+  }
 
-		try {
-			await api.updateFeeding(uiState.activeStarter, feedingId, updatedFeeding)
-			await refreshStarter(uiState.activeStarter)
-			updateUiState({ editingFeeding: null })
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update feeding')
-			console.error('Error updating feeding:', err)
-		}
-	}
+  // Core note functions
+  const addNote = async (): Promise<void> => {
+    if (!newNote.trim() || !uiState.activeStarter) return
 
-	// Delete feeding function
-	const deleteFeeding = async (feedingId: number): Promise<void> => {
-		if (!uiState.activeStarter) return
-		
-		if (window.confirm('Are you sure you want to delete this feeding record?')) {
-			try {
-				await api.deleteFeeding(uiState.activeStarter, feedingId)
-				await refreshStarter(uiState.activeStarter)
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to delete feeding')
-				console.error('Error deleting feeding:', err)
-			}
-		}
-	}
+    try {
+      await api.addNote(uiState.activeStarter, newNote)
+      await refreshStarter(uiState.activeStarter)
+      setNewNote('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add note')
+      console.error('Error adding note:', err)
+    }
+  }
 
-	// Start editing feeding
-	const startEditingFeeding = (feeding: Feeding): void => {
-		updateUiState({ editingFeeding: feeding })
-	}
+  const editNote = async (noteId: number, updatedText: string): Promise<void> => {
+    if (!uiState.activeStarter) return
 
-	// Cancel editing feeding
-	const cancelEditingFeeding = (): void => {
-		updateUiState({ editingFeeding: null })
-	}
+    try {
+      await api.updateNote(uiState.activeStarter, noteId, updatedText)
+      await refreshStarter(uiState.activeStarter)
+      updateUiState({ editingNote: null })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update note')
+      console.error('Error updating note:', err)
+    }
+  }
 
-	// Core note functions
-	const addNote = async (): Promise<void> => {
-		if (!newNote.trim() || !uiState.activeStarter) return
+  const deleteNote = async (noteId: number): Promise<void> => {
+    if (!uiState.activeStarter) return
 
-		try {
-			await api.addNote(uiState.activeStarter, newNote)
-			await refreshStarter(uiState.activeStarter)
-			setNewNote("")
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to add note')
-			console.error('Error adding note:', err)
-		}
-	}
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      try {
+        await api.deleteNote(uiState.activeStarter, noteId)
+        await refreshStarter(uiState.activeStarter)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to delete note')
+        console.error('Error deleting note:', err)
+      }
+    }
+  }
 
-	// Edit note function
-	const editNote = async (noteId: number, updatedText: string): Promise<void> => {
-		if (!uiState.activeStarter) return
+  const startEditingNote = (note: Note): void => {
+    updateUiState({ editingNote: note })
+  }
 
-		try {
-			await api.updateNote(uiState.activeStarter, noteId, updatedText)
-			await refreshStarter(uiState.activeStarter)
-			updateUiState({ editingNote: null })
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update note')
-			console.error('Error updating note:', err)
-		}
-	}
+  const cancelEditingNote = (): void => {
+    updateUiState({ editingNote: null })
+  }
 
-	// Delete note function
-	const deleteNote = async (noteId: number): Promise<void> => {
-		if (!uiState.activeStarter) return
-		
-		if (window.confirm('Are you sure you want to delete this note?')) {
-			try {
-				await api.deleteNote(uiState.activeStarter, noteId)
-				await refreshStarter(uiState.activeStarter)
-			} catch (err) {
-				setError(err instanceof Error ? err.message : 'Failed to delete note')
-				console.error('Error deleting note:', err)
-			}
-		}
-	}
+  // Starter management functions
+  const addNewStarter = async (): Promise<void> => {
+    try {
+      const newStarter = await api.createStarter({
+        user_id: user ? user.id : 0,
+        name: `Starter #${starters.length + 1}`,
+        feedingSchedule: 24,
+      })
 
-	// Start editing note
-	const startEditingNote = (note: Note): void => {
-		updateUiState({ editingNote: note })
-	}
+      setStarters(prev => [...prev, newStarter])
+      updateUiState({ activeStarter: newStarter.id })
+      scheduleNotification(newStarter)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create starter')
+      console.error('Error creating starter:', err)
+    }
+  }
 
-	// Cancel editing note
-	const cancelEditingNote = (): void => {
-		updateUiState({ editingNote: null })
-	}
+  const deleteStarters = async (starterIds: number[]): Promise<void> => {
+    try {
+      await Promise.all(starterIds.map(id => api.deleteStarter(id)))
 
-	// Starter management functions
-	const addNewStarter = async (): Promise<void> => {
-		try {
-			const newStarter = await api.createStarter({
-                user_id: user ? user.id : 0,
-				name: `Starter #${starters.length + 1}`,
-				feedingSchedule: 24
-			})
-			
-			setStarters(prev => [...prev, newStarter])
-			updateUiState({ activeStarter: newStarter.id })
-			scheduleNotification(newStarter)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to create starter')
-			console.error('Error creating starter:', err)
-		}
-	}
+      const updatedStarters = starters.filter((s: Starter) => !starterIds.includes(s.id))
+      setStarters(updatedStarters)
 
-	const deleteStarters = async (starterIds: number[]): Promise<void> => {
-		try {
-			// Delete each starter from the database
-			await Promise.all(starterIds.map(id => api.deleteStarter(id)))
-			
-			// Update local state
-			const updatedStarters = starters.filter((s: Starter) => !starterIds.includes(s.id))
-			setStarters(updatedStarters)
-			
-			if (uiState.activeStarter && starterIds.includes(uiState.activeStarter)) {
-				const newActiveStarter = updatedStarters.length > 0 ? updatedStarters[0].id : null
-				updateUiState({ activeStarter: newActiveStarter })
-			}
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to delete starters')
-			console.error('Error deleting starters:', err)
-		}
-	}
+      if (uiState.activeStarter && starterIds.includes(uiState.activeStarter)) {
+        const newActiveStarter = updatedStarters.length > 0 ? updatedStarters[0].id : null
+        updateUiState({ activeStarter: newActiveStarter })
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete starters')
+      console.error('Error deleting starters:', err)
+    }
+  }
 
-	const toggleFavorite = async (starterId: number): Promise<void> => {
-		try {
-			const starter = starters.find(s => s.id === starterId)
-			if (!starter) return
+  const toggleFavorite = async (starterId: number): Promise<void> => {
+    try {
+      const starter = starters.find(s => s.id === starterId)
+      if (!starter) return
 
-			await api.updateStarter(starterId, { isFavorite: !starter.isFavorite })
-			await refreshStarter(starterId)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update favorite')
-			console.error('Error toggling favorite:', err)
-		}
-	}
+      await api.updateStarter(starterId, { isFavorite: !starter.isFavorite })
+      await refreshStarter(starterId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update favorite')
+      console.error('Error toggling favorite:', err)
+    }
+  }
 
-	const duplicateStarter = async (starterId: number): Promise<void> => {
-		try {
-			const starterToDupe = starters.find((s: Starter) => s.id === starterId)
-			if (!starterToDupe) return
+  const duplicateStarter = async (starterId: number): Promise<void> => {
+    try {
+      const starterToDupe = starters.find((s: Starter) => s.id === starterId)
+      if (!starterToDupe) return
 
-			const duplicatedStarter = await api.createStarter({
-                user_id: user ? user.id : 0,
-				name: `${starterToDupe.name} (Copy)`,
-				feedingSchedule: starterToDupe.feedingSchedule
-			})
-			
-			setStarters(prev => [...prev, duplicatedStarter])
-			scheduleNotification(duplicatedStarter)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to duplicate starter')
-			console.error('Error duplicating starter:', err)
-		}
-	}
+      const duplicatedStarter = await api.createStarter({
+        user_id: user ? user.id : 0,
+        name: `${starterToDupe.name} (Copy)`,
+        feedingSchedule: starterToDupe.feedingSchedule,
+      })
 
-	const updateStarterName = async (name: string, starterId?: number): Promise<void> => {
-		const targetId = starterId || uiState.activeStarter
-		if (!targetId) return
+      setStarters(prev => [...prev, duplicatedStarter])
+      scheduleNotification(duplicatedStarter)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate starter')
+      console.error('Error duplicating starter:', err)
+    }
+  }
 
-		try {
-			await api.updateStarter(targetId, { name })
-			await refreshStarter(targetId)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update starter name')
-			console.error('Error updating starter name:', err)
-		}
-	}
+  const updateStarterName = async (name: string, starterId?: number): Promise<void> => {
+    const targetId = starterId || uiState.activeStarter
+    if (!targetId) return
 
-	const updateFeedingSchedule = async (hours: number, starterId?: number): Promise<void> => {
-		const targetId = starterId || uiState.activeStarter
-		if (!targetId) return
+    try {
+      await api.updateStarter(targetId, { name })
+      await refreshStarter(targetId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update starter name')
+      console.error('Error updating starter name:', err)
+    }
+  }
 
-		try {
-			await api.updateStarter(targetId, { feedingSchedule: hours })
-			const updatedStarter = await api.getStarter(targetId)
-			setStarters(prev => prev.map(s => s.id === targetId ? updatedStarter : s))
-			scheduleNotification(updatedStarter)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update feeding schedule')
-			console.error('Error updating feeding schedule:', err)
-		}
-	}
+  const updateFeedingSchedule = async (hours: number, starterId?: number): Promise<void> => {
+    const targetId = starterId || uiState.activeStarter
+    if (!targetId) return
 
-	const updateStarterRecipe = async (recipeId: number, starterId?: number): Promise<void> => {
-		const targetId = starterId || uiState.activeStarter
-		if (!targetId) return
+    try {
+      await api.updateStarter(targetId, { feedingSchedule: hours })
+      const updatedStarter = await api.getStarter(targetId)
+      setStarters(prev => prev.map(s => (s.id === targetId ? updatedStarter : s)))
+      scheduleNotification(updatedStarter)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update feeding schedule')
+      console.error('Error updating feeding schedule:', err)
+    }
+  }
 
-		try {
-			const recipeToUse = recipes.find((r: Recipe) => r.id === recipeId)
-			await api.updateStarter(targetId, { 
-				recipe: recipeId ? recipeToUse || null : null 
-			})
-			await refreshStarter(targetId)
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to update starter recipe')
-			console.error('Error updating starter recipe:', err)
-		}
-	}
+  const updateStarterRecipe = async (recipeData: any, starterId?: number): Promise<void> => {
+    const targetId = starterId || uiState.activeStarter
+    if (!targetId) return
 
-	// Popup management functions
-	const openStarterManagement = () => {
-		updateUiState({ showStarterPopup: true })
-	}
+    try {
+      await api.updateRecipe(targetId, recipeData)
+      await refreshStarter(targetId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update recipe')
+      console.error('Error updating recipe:', err)
+    }
+  }
 
-	const closeStarterManagement = () => {
-		updateUiState({ showStarterPopup: false })
-	}
+  // Active starter recipe helpers
+  const getActiveStarterRecipe = (): Recipe | null => {
+    const activeStarter = getActiveStarterData()
+    return activeStarter?.recipe || null
+  }
 
-	const setActiveStarter = (starterId: number) => {
-		updateUiState({ activeStarter: starterId })
-	}
+  // Clear the associated recipe for a starter (not the starter itself)
+  const clearStarterRecipe = async (starterId?: number): Promise<void> => {
+    const targetId = starterId || uiState.activeStarter
+    if (!targetId) return
 
-	// Notification system (unchanged)
-	const scheduleNotification = useCallback((starter: Starter) => {
-		if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
-			const lastFed = new Date(starter.lastFed)
-			const nextFeeding = new Date(lastFed.getTime() + starter.feedingSchedule * 60 * 60 * 1000)
-			const now = new Date()
+    // If there’s no recipe on this starter, do nothing
+    const starter = starters.find(s => s.id === targetId)
+    if (!starter?.recipe) return
 
-			if (nextFeeding > now) {
-				const delay = nextFeeding.getTime() - now.getTime()
+    try {
+      await api.deleteRecipe(targetId)
 
-				const timeoutId = setTimeout(() => {
-					navigator.serviceWorker.ready.then((registration) => {
-						const notificationOptions: NotificationOptions = {
-							body: 'Your sourdough starter is ready for feeding',
-							icon: '/icon-192.png',
-							badge: '/icon-192.png',
-							tag: `feeding-${starter.id}`,
-							requireInteraction: true,
-							...(('actions' in Notification.prototype) && {
-								actions: [
-									{
-										action: 'feed-now',
-										title: 'Feed Now'
-									},
-									{
-										action: 'snooze',
-										title: 'Remind Later'
-									}
-								]
-							})
-						}
-						
-						registration.showNotification(`Time to feed ${starter.name}!`, notificationOptions)
-					})
-				}, delay)
+      // Optimistic update with proper typing: recipe must be null, not undefined
+      setStarters(prev =>
+        prev.map(s => (s.id === targetId ? { ...s, recipe: null } as Starter : s))
+      )
 
-				return timeoutId
-			}
-		}
-	}, [])
+      // Optional strict refresh:
+      // await refreshStarter(targetId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete recipe')
+      console.error('Error deleting recipe:', err)
+    }
+  }
 
-	// Request notification permission
-	const requestNotificationPermission = useCallback(async () => {
-		if ('Notification' in window) {
-			const permission = await Notification.requestPermission()
-			return permission === 'granted'
-		}
-		return false
-	}, [])
+  // Popup management
+  const openStarterManagement = () => {
+    updateUiState({ showStarterPopup: true })
+  }
 
-	// Schedule notifications for all starters on app load
-	useEffect(() => {
-		starters.forEach((starter: Starter) => scheduleNotification(starter))
-	}, [starters, scheduleNotification])
+  const closeStarterManagement = () => {
+    updateUiState({ showStarterPopup: false })
+  }
 
-	// Navigation helper for recipe viewing
-	const handleViewRecipe = (recipeId: number, onNavigate?: (path: string) => void) => {
-		updateUiState({ activeRecipe: recipeId })
-		if (onNavigate) {
-			onNavigate(`/recipes/${recipeId}`)
-		}
-	}
+  const setActiveStarter = (starterId: number) => {
+    updateUiState({ activeStarter: starterId })
+  }
 
-	// Clear any errors
-	const clearError = () => setError(null)
+  // Notification system (unchanged)
+  const scheduleNotification = useCallback((starter: Starter) => {
+    if ('serviceWorker' in navigator && 'Notification' in window && Notification.permission === 'granted') {
+      const lastFed = new Date(starter.lastFed)
+      const nextFeeding = new Date(lastFed.getTime() + starter.feedingSchedule * 60 * 60 * 1000)
+      const now = new Date()
 
-	return {
-		// State
-		starters,
-		recipes,
-		loading,
-		error,
-		activeStarter: uiState.activeStarter,
-		activeRecipe: uiState.activeRecipe,
-		newFeeding,
-		newBaking,
-		newNote,
-		newRecipe,
-		view: uiState.view,
-		showModal: uiState.showModal,
-		showStarterPopup: uiState.showStarterPopup,
-		searchTerm: uiState.searchTerm,
-		dateFilter: uiState.dateFilter,
-		selectedStarters: uiState.selectedStarters,
-		editingFeeding: uiState.editingFeeding,
-		editingNote: uiState.editingNote,
+      if (nextFeeding > now) {
+        const delay = nextFeeding.getTime() - now.getTime()
 
-		// Setters (consolidated)
-		setStarters,
-		setRecipes,
-		setNewFeeding,
-		setNewBaking,
-		setNewNote,
-		setNewRecipe,
-		updateUiState,
+        const timeoutId = setTimeout(() => {
+          navigator.serviceWorker.ready.then(registration => {
+            const notificationOptions: NotificationOptions = {
+              body: 'Your sourdough starter is ready for feeding',
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              tag: `feeding-${starter.id}`,
+              requireInteraction: true,
+              ...(('actions' in Notification.prototype) && {
+                actions: [
+                  { action: 'feed-now', title: 'Feed Now' },
+                  { action: 'snooze', title: 'Remind Later' },
+                ],
+              }),
+            }
 
-		// Individual setters for backward compatibility
-		setActiveStarter,
-		setActiveRecipe: (id: number) => updateUiState({ activeRecipe: id }),
-		setView: (view: ViewType) => updateUiState({ view }),
-		setShowModal: (show: boolean) => updateUiState({ showModal: show }),
-		setSearchTerm: (term: string) => updateUiState({ searchTerm: term }),
-		setDateFilter: (filter: { start: string; end: string }) => updateUiState({ dateFilter: filter }),
-		setSelectedStarters: (ids: number[]) => updateUiState({ selectedStarters: ids }),
+            registration.showNotification(`Time to feed ${starter.name}!`, notificationOptions)
+          })
+        }, delay)
 
-		// Helper functions
-		getActiveStarterData,
-		getActiveRecipeData,
+        return timeoutId
+      }
+    }
+  }, [])
 
-		// Core actions (now async)
-		addFeeding,
-		addNote,
+  const requestNotificationPermission = useCallback(async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission()
+      return permission === 'granted'
+    }
+    return false
+  }, [])
 
-		// Edit/Delete actions (now async)
-		editFeeding,
-		deleteFeeding,
-		startEditingFeeding,
-		cancelEditingFeeding,
-		editNote,
-		deleteNote,
-		startEditingNote,
-		cancelEditingNote,
+  useEffect(() => {
+    starters.forEach((starter: Starter) => scheduleNotification(starter))
+  }, [starters, scheduleNotification])
 
-		// Starter management actions (now async)
-		addNewStarter,
-		deleteStarters,
-		toggleFavorite,
-		duplicateStarter,
-		updateStarterName,
-		updateFeedingSchedule,
-		updateStarterRecipe,
+  // Recipe navigation
+  const handleViewRecipe = (recipeId: number, onNavigate?: (path: string) => void) => {
+    updateUiState({ activeRecipe: recipeId })
+    if (onNavigate) {
+      onNavigate(`/recipes/${recipeId}`)
+    }
+  }
 
-		// Popup management
-		openStarterManagement,
-		closeStarterManagement,
-		onViewAllStarters: openStarterManagement,
+  const listAllBakings = async () => {
+    try {
+      return await api.listAllBakings()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load bakings')
+      console.error('Error loading bakings:', err)
+      return []
+    }
+  }
 
-		// Recipe navigation
-		handleViewRecipe,
+  // Clear any errors
+  const clearError = () => setError(null)
 
-		// Notification system
-		scheduleNotification,
-		requestNotificationPermission,
+  return {
+    // State
+    starters,
+    loading,
+    error,
+    activeStarter: uiState.activeStarter,
+    activeRecipe: uiState.activeRecipe,
+    newFeeding,
+    newBaking,
+    newNote,
+    newRecipe,
+    view: uiState.view,
+    showModal: uiState.showModal,
+    showStarterPopup: uiState.showStarterPopup,
+    searchTerm: uiState.searchTerm,
+    dateFilter: uiState.dateFilter,
+    selectedStarters: uiState.selectedStarters,
+    editingFeeding: uiState.editingFeeding,
+    editingNote: uiState.editingNote,
 
-		// Data management
-		refreshStarter,
-		fetchStarters,
-		clearError,
-	}
+    // Setters
+    setStarters,
+    setNewFeeding,
+    setNewBaking,
+    setNewNote,
+    setNewRecipe,
+    updateUiState,
+
+    // Individual setters
+    setActiveStarter,
+    setActiveRecipe: (id: number) => updateUiState({ activeRecipe: id }),
+    setView: (view: ViewType) => updateUiState({ view }),
+    setShowModal: (show: boolean) => updateUiState({ showModal: show }),
+    setSearchTerm: (term: string) => updateUiState({ searchTerm: term }),
+    setDateFilter: (filter: { start: string; end: string }) => updateUiState({ dateFilter: filter }),
+    setSelectedStarters: (ids: number[]) => updateUiState({ selectedStarters: ids }),
+
+    // Helper functions
+    getActiveStarterData,
+    getActiveRecipeData,
+
+    getActiveStarterRecipe,
+    clearStarterRecipe,
+
+    // Core actions
+    addFeeding,
+    addNote,
+
+    // Edit/Delete actions
+    editFeeding,
+    deleteFeeding,
+    startEditingFeeding,
+    cancelEditingFeeding,
+    editNote,
+    deleteNote,
+    startEditingNote,
+    cancelEditingNote,
+
+    // Starter management
+    addNewStarter,
+    deleteStarters,
+    toggleFavorite,
+    duplicateStarter,
+    updateStarterName,
+    updateFeedingSchedule,
+    updateStarterRecipe,
+
+    listAllBakings,
+
+    // Popup management
+    openStarterManagement,
+    closeStarterManagement,
+    onViewAllStarters: openStarterManagement,
+
+    // Recipe navigation
+    handleViewRecipe,
+
+    // Notification system
+    scheduleNotification,
+    requestNotificationPermission,
+
+    // Data management
+    refreshStarter,
+    fetchStarters,
+    clearError,
+  }
 }

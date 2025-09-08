@@ -7,25 +7,36 @@ import type { Recipe } from '../../../types'
 import Input from '../../../components/ui/Input'
 import Textarea from '../../../components/ui/Textarea'
 import Button from '../../../components/ui/Button'
+import api from '../../../services/api'
 
 interface AddRecipeProps {
-	onSaveRecipe: (recipe: Omit<Recipe, 'id' | 'bakingHistory'>) => void
+    onSaveRecipe: (recipe: Omit<Recipe, 'id' | 'bakingHistory'>) => void
+    activeStarterId: number | null
 }
 
-const AddRecipe: React.FC<AddRecipeProps> = ({ onSaveRecipe }) => {
-	const navigate = useNavigate()
-	const [recipe, setRecipe] = useState({
-		name: '',
-		ingredients: '',
-		instructions: '',
-	})
+const AddRecipe: React.FC<AddRecipeProps> = ({ activeStarterId, onSaveRecipe }) => {
+    const navigate = useNavigate()
+    const [recipe, setRecipe] = useState({
+      name: '',
+      ingredients: '',
+      instructions: '',
+    })
+    const [saving, setSaving] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
-	const handleSave = () => {
-		if (!recipe.name.trim()) return
-		
-		onSaveRecipe(recipe)
-		navigate('/recipes')
-	}
+	const handleSave = async () => {
+        if (!recipe.name.trim()) {
+          alert('Please provide a recipe name')
+          return
+        }
+        
+        if (!activeStarterId) {
+          alert('Please select a starter first')
+          return
+        }
+        
+        await onSaveRecipe(recipe)
+      }
 
 	return (
 		<motion.div
@@ -35,6 +46,11 @@ const AddRecipe: React.FC<AddRecipeProps> = ({ onSaveRecipe }) => {
 			animate="visible"
 			exit="exit"
 		>
+            {error && (
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                {error}
+                </div>
+            )}
 			<motion.div className="text-center space-y-4" variants={itemVariants}>
 				<button
 					onClick={() => navigate('/recipes')}
@@ -76,25 +92,25 @@ const AddRecipe: React.FC<AddRecipeProps> = ({ onSaveRecipe }) => {
 			</motion.div>
 
 			<motion.div className="flex gap-4" variants={itemVariants}>
-				<Button
-					variant="secondary"
-					size="lg"
-					className="flex-1"
-					onClick={() => navigate('/recipes')}
-				>
-					Cancel
-				</Button>
-				<Button
-					variant="primary"
-					size="lg"
-					className="flex-1"
-					onClick={handleSave}
-					disabled={!recipe.name.trim()}
-				>
-					Save Recipe
-				</Button>
-			</motion.div>
-		</motion.div>
+        <Button
+          variant="secondary"
+          size="lg"
+          className="flex-1"
+          onClick={() => navigate('/dashboard')}
+        >
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          className="flex-1"
+          onClick={handleSave}
+          disabled={!recipe.name.trim() || saving}
+        >
+          {saving ? 'Saving...' : 'Save Recipe'}
+        </Button>
+      </motion.div>
+    </motion.div>
 	)
 }
 

@@ -1,7 +1,7 @@
 // services/api.ts
-import type { Starter, Feeding, Note } from "../types";
+import type { Starter, Feeding, Recipe, NewBaking, Baking } from "../types";
 
-const API_BASE = (import.meta.env.VITE_API_URL ?? "http://localhost:8080")
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8080";
 
 class ApiService {
   private token: string | null = null;
@@ -41,40 +41,43 @@ class ApiService {
     options?: RequestInit
   ): Promise<T> {
     const token = this.getToken();
-    console.log("Token being used for request:", token ? `${token.substring(0, 20)}...` : 'No token');
+    console.log(
+      "Token being used for request:",
+      token ? `${token.substring(0, 20)}...` : "No token"
+    );
 
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
+      "Content-Type": "application/json",
+    };
 
     // Add Authorization header if token exists
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
-    } else if (endpoint !== '/auth/login' && endpoint !== '/auth/register') {
+    } else if (endpoint !== "/auth/login" && endpoint !== "/auth/register") {
       // Only throw error for non-auth endpoints
-      console.error('No token available for protected endpoint:', endpoint);
-      throw new Error('Authentication required. Please log in.');
+      console.error("No token available for protected endpoint:", endpoint);
+      throw new Error("Authentication required. Please log in.");
     }
 
     console.log(`Making request to: ${API_BASE}${endpoint}`);
-    
+
     const response = await fetch(`${API_BASE}${endpoint}`, {
       ...options,
       headers: {
         ...headers,
-        ...(options?.headers || {})
+        ...(options?.headers || {}),
       },
     });
 
     if (response.status === 401) {
       // Token is invalid or expired
       this.setToken(null);
-      throw new Error('Session expired. Please log in again.');
+      throw new Error("Session expired. Please log in again.");
     }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('API Error:', errorData);
+      console.error("API Error:", errorData);
       throw new Error(errorData.error || `API error: ${response.statusText}`);
     }
 
@@ -180,8 +183,84 @@ class ApiService {
       method: "DELETE",
     });
   }
+  async getRecipe(starterId: number): Promise<Recipe> {
+    return this.request<Recipe>(`/starters/${starterId}/recipe`);
+  }
+
+  async updateRecipe(
+    starterId: number,
+    recipeData: {
+      name: string;
+      ingredients: string;
+      instructions: string;
+    }
+  ): Promise<Recipe> {
+    return this.request<Recipe>(`/starters/${starterId}/recipe`, {
+      method: "PUT",
+      body: JSON.stringify(recipeData),
+    });
+  }
+
+  async deleteRecipe(starterId: number): Promise<{ message: string }> {
+    try {
+      return await this.request<{ message: string }>(`/starters/${starterId}/recipe`, {
+        method: 'DELETE',
+      })
+    } catch (e) {
+      // If server returns 404 when there is no recipe, treat as success
+      if (e instanceof Error && /not found/i.test(e.message)) {
+        return { message: 'No recipe to delete' }
+      }
+      throw e
+    }
+  }
+
+  async getAllRecipes(): Promise<Recipe[]> {
+    return this.request<Recipe[]>("/recipes")
+  }
+
+  async addBaking(starterId: number, data: Omit<NewBaking, 'starterId'>) {
+    // backend expects: { recipeId?, date, result, notes }
+    const payload = {
+      recipeId: data.recipeId ?? null,
+      date: data.date,
+      result: data.result,
+      notes: data.notes,
+    }
+    return this.request<Baking>(`/starters/${starterId}/bakings`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async updateBaking(starterId: number, bakingId: number, updates: Partial<NewBaking>) {
+    const payload: any = {}
+    if (updates.date !== undefined) payload.date = updates.date
+    if (updates.result !== undefined) payload.result = updates.result
+    if (updates.notes !== undefined) payload.notes = updates.notes
+    return this.request<Baking>(`/starters/${starterId}/bakings/${bakingId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  async deleteBaking(starterId: number, bakingId: number) {
+    return this.request<{ message: string }>(`/starters/${starterId}/bakings/${bakingId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async listBakings(starterId: number): Promise<Baking[]> {
+    return this.request<Baking[]>(`/starters/${starterId}/bakings`)
+  }
+  
+  // list all
+  async listAllBakings(): Promise<Baking[]> {
+    return this.request<Baking[]>(`/bakings`)
+  }
 }
 
 // Export singleton instance
 const apiService = new ApiService();
 export default apiService;
+

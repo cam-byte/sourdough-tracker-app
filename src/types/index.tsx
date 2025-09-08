@@ -116,3 +116,22 @@ export interface Feeding {
 	timestamp: string
 	created_at: string
   }
+
+  export interface Baking {
+    id: number
+    userId: number
+    starterId: number
+    recipeId?: number | null
+    date: string       // YYYY-MM-DD
+    result: string
+    notes: string
+  }
+  
+  export interface NewBaking {
+    date: string
+    starterId: number
+    notes: string
+    result: string
+    recipeId?: number | null
+  }
+  
