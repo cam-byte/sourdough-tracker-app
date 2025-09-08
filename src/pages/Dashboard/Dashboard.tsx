@@ -21,6 +21,7 @@ import type { Feeding, Recipe, Starter } from "../../types"
 import FeedingCard from "../../components/FeedingCard"
 import NoteCard from "../../components/NoteCard"
 import Button from "../../components/ui/Button"
+import Collapsible from "../../components/Collapsible"
 
 interface DashboardProps {
     starter: Starter
@@ -35,7 +36,7 @@ interface DashboardProps {
     onAddNote: () => void
     onViewHistory: () => void
     onViewNotes: () => void
-    
+
     // Add edit/delete functionality
     onEditFeeding?: (feedingId: number, updatedFeeding: Partial<Feeding>) => void
     onDeleteFeeding?: (feedingId: number) => void
@@ -85,10 +86,10 @@ const timeUntilNextFeeding = (starter: Starter): string => {
 
     // Parse the date properly
     const lastFed = new Date(starter.lastFed)
-    
+
     // Check if the date is valid
     if (isNaN(lastFed.getTime())) return "Invalid date"
-    
+
     // Calculate next feeding time
     const nextFeeding = new Date(lastFed.getTime() + starter.feedingSchedule * 60 * 60 * 1000)
     const now = new Date()
@@ -146,7 +147,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         className="text-4xl md:text-5xl font-bold bg-transparent border-none focus:outline-none text-center text-amber-900 hover:bg-amber-50 rounded-xl px-4 py-2 transition-colors"
                     />
                     {starter.isFavorite && <Star className="absolute -top-2 -right-2 text-yellow-500 fill-current" size={24} />}
-                    
+
 
                 </div>
                 <div className="flex items-center justify-center gap-6 text-amber-700">
@@ -161,12 +162,12 @@ const Dashboard: React.FC<DashboardProps> = ({
                     </div>
                 </div>
                 <Button
-                        className="absolute top-0 right-8 transform translate-x-1/2 -translate-y-1/2"
-                        variant="icon-only"
-                        onClick={onDeleteStarter}
-                    >
-                        <X className="text-red-300 fill-current" size={24}/>
-                    </Button>
+                    className="absolute top-0 right-8 transform translate-x-1/2 -translate-y-1/2"
+                    variant="icon-only"
+                    onClick={onDeleteStarter}
+                >
+                    <X className="text-red-300 fill-current" size={24} />
+                </Button>
             </motion.div>
 
             {/* Status Cards */}
@@ -363,25 +364,24 @@ const Dashboard: React.FC<DashboardProps> = ({
             {/* Recent Activity */}
             <motion.div className="space-y-8" variants={itemVariants}>
                 {/* Recent Feedings */}
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <Activity className="text-amber-600" size={24} />
-                            <h3 className="text-2xl font-semibold text-amber-900">Recent Feedings</h3>
-                        </div>
-                        {starter.feedingHistory?.length > 3 ? (
+                <Collapsible
+                    title="Recent Feedings"
+                    icon={<Activity className="text-amber-600" size={24} />}
+                    actionButton={
+                        starter.feedingHistory?.length > 3 ? (
                             <button
                                 onClick={onViewHistory}
                                 className="text-amber-600 hover:text-amber-700 font-medium px-4 py-2 rounded-xl hover:bg-amber-50 transition-colors"
                             >
                                 View All
                             </button>
-                        ):(
+                        ) : (
                             <div className="w-24"></div>
-                        )}
-                    </div>
-
-                    {starter.feedingHistory?.length === 0 ? (
+                        )
+                    }
+                    defaultOpen={true}
+                >
+                    {starter.feedingHistory?.length === 0 || starter.feedingHistory === undefined ? (
                         <div className="bg-white rounded-2xl border-2 border-dashed border-amber-200 p-12 text-center">
                             <Droplet className="text-amber-300 mx-auto mb-4" size={48} />
                             <h4 className="text-xl font-semibold text-amber-900 mb-2">No feedings yet</h4>
@@ -407,28 +407,25 @@ const Dashboard: React.FC<DashboardProps> = ({
                             ))}
                         </div>
                     )}
-                </div>
+                </Collapsible>
 
                 {/* Recent Notes */}
-                <div>
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-3">
-                            <StickyNote className="text-amber-600" size={24} />
-                            <h3 className="text-2xl font-semibold text-amber-900">Recent Notes</h3>
-                        </div>
-                        {starter.notes?.length > 2 ? (
+                <Collapsible
+                    title="Recent Notes"
+                    icon={<StickyNote className="text-amber-600" size={24} />}
+                    actionButton={
+                        starter.notes?.length > 2 ? (
                             <button
                                 onClick={onViewNotes}
                                 className="text-amber-600 hover:text-amber-700 font-medium px-4 py-2 rounded-xl hover:bg-amber-50 transition-colors"
                             >
                                 View All
                             </button>
-                        ):(
-                            <div className="w-24"></div>
-                        )}
-                    </div>
-
-                    {starter.notes?.length === 0 ? (
+                        ) : null
+                    }
+                    defaultOpen={starter.notes?.length > 0}
+                >
+                    {!starter.notes || starter.notes.length === 0 ? (
                         <div className="bg-white rounded-2xl border-2 border-dashed border-amber-200 p-12 text-center">
                             <StickyNote className="text-amber-300 mx-auto mb-4" size={48} />
                             <h4 className="text-xl font-semibold text-amber-900 mb-2">No notes yet</h4>
@@ -442,7 +439,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {starter.notes?.slice(0, 2).map((note, index) => (
+                            {starter.notes.slice(0, 2).map((note, index) => (
                                 <NoteCard
                                     key={note.id}
                                     note={note}
@@ -453,7 +450,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                             ))}
                         </div>
                     )}
-                </div>
+                </Collapsible>
             </motion.div>
         </motion.div>
     )

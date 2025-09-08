@@ -1,5 +1,6 @@
 // src/hooks/useAuth.ts
 import { useState, useEffect, createContext, useContext } from 'react'
+import apiService from '../services/api'
 
 interface User {
     id: number
@@ -18,6 +19,7 @@ interface AuthContextType {
     loading: boolean
     error: string | null
     clearError: () => void
+    isAuthenticated: boolean
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -33,23 +35,49 @@ export const useAuth = () => {
 export const useAuthProvider = () => {
     const [user, setUser] = useState<User | null>(null)
     const [token, setToken] = useState<string | null>(null)
-    const [loading, setLoading] = useState(false)
+    const [loading, setLoading] = useState(true) // Start with true for initial load
     const [error, setError] = useState<string | null>(null)
 
     useEffect(() => {
-        console.log('token exists in useAuthProvider:', token !== null)
-        console.log('token length:', token ? token.length : 'no token')
+        console.log('Auth state changed - token exists:', token !== null)
+        console.log('Token preview:', token ? `${token.substring(0, 20)}...` : 'no token')
     }, [token])
 
     // Initialize auth state from localStorage
     useEffect(() => {
-        const savedToken = localStorage.getItem('auth_token')
-        const savedUser = localStorage.getItem('auth_user')
-        
-        if (savedToken && savedUser) {
-            setToken(savedToken)
-            setUser(JSON.parse(savedUser))
+        const initializeAuth = () => {
+            try {
+                const savedToken = localStorage.getItem('auth_token')
+                const savedUser = localStorage.getItem('auth_user')
+                
+                console.log('Initializing auth from localStorage:', { 
+                    hasToken: !!savedToken, 
+                    hasUser: !!savedUser 
+                })
+                
+                if (savedToken && savedUser) {
+                    const parsedUser = JSON.parse(savedUser)
+                    setToken(savedToken)
+                    setUser(parsedUser)
+                    // IMPORTANT: Sync token with API service
+                    apiService.setToken(savedToken)
+                    console.log('Auth restored from localStorage')
+                } else {
+                    // Ensure API service has no token
+                    apiService.setToken(null)
+                }
+            } catch (err) {
+                console.error('Failed to restore auth from localStorage:', err)
+                // Clear corrupted data
+                localStorage.removeItem('auth_token')
+                localStorage.removeItem('auth_user')
+                apiService.setToken(null)
+            } finally {
+                setLoading(false)
+            }
         }
+
+        initializeAuth()
     }, [])
 
     const clearError = () => setError(null)
@@ -59,6 +87,8 @@ export const useAuthProvider = () => {
         setError(null)
         
         try {
+            console.log('Attempting login for:', email)
+            
             const response = await fetch('http://localhost:8080/auth/login', {
                 method: 'POST',
                 headers: {
@@ -73,14 +103,24 @@ export const useAuthProvider = () => {
             }
 
             const data = await response.json()
+            console.log('Login successful, received token:', !!data.token)
+            
+            // Update state
             setToken(data.token)
             setUser(data.user)
             
             // Save to localStorage
             localStorage.setItem('auth_token', data.token)
             localStorage.setItem('auth_user', JSON.stringify(data.user))
+            
+            // IMPORTANT: Sync token with API service immediately
+            apiService.setToken(data.token)
+            
+            console.log('Token synced with API service')
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Login failed')
+            const errorMessage = err instanceof Error ? err.message : 'Login failed'
+            setError(errorMessage)
+            console.error('Login error:', errorMessage)
             throw err
         } finally {
             setLoading(false)
@@ -92,6 +132,8 @@ export const useAuthProvider = () => {
         setError(null)
         
         try {
+            console.log('Attempting registration for:', email)
+            
             const response = await fetch('http://localhost:8080/auth/register', {
                 method: 'POST',
                 headers: {
@@ -106,14 +148,24 @@ export const useAuthProvider = () => {
             }
 
             const data = await response.json()
+            console.log('Registration successful, received token:', !!data.token)
+            
+            // Update state
             setToken(data.token)
             setUser(data.user)
             
             // Save to localStorage
             localStorage.setItem('auth_token', data.token)
             localStorage.setItem('auth_user', JSON.stringify(data.user))
+            
+            // IMPORTANT: Sync token with API service immediately
+            apiService.setToken(data.token)
+            
+            console.log('Token synced with API service')
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Registration failed')
+            const errorMessage = err instanceof Error ? err.message : 'Registration failed'
+            setError(errorMessage)
+            console.error('Registration error:', errorMessage)
             throw err
         } finally {
             setLoading(false)
@@ -121,11 +173,23 @@ export const useAuthProvider = () => {
     }
 
     const logout = () => {
+        console.log('Logging out user')
+        
+        // Clear state
         setUser(null)
         setToken(null)
+        
+        // Clear localStorage
         localStorage.removeItem('auth_token')
         localStorage.removeItem('auth_user')
+        
+        // IMPORTANT: Clear token from API service
+        apiService.setToken(null)
+        
+        console.log('Logout complete, all tokens cleared')
     }
+
+    const isAuthenticated = !!(token && user)
 
     return {
         user,
@@ -136,6 +200,7 @@ export const useAuthProvider = () => {
         loading,
         error,
         clearError,
+        isAuthenticated,
     }
 }
 

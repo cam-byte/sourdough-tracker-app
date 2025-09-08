@@ -143,9 +143,6 @@ const FeedingCard: React.FC<FeedingCardProps> = ({
 							value={editData.flour}
 							onChange={(e) => setEditData({ ...editData, flour: Number(e.target.value) })}
 							placeholder="0"
-							icon={Bread}
-							min="0"
-							max="1000"
 						/>
 						<Input
 							label="Water (g)"
@@ -153,9 +150,6 @@ const FeedingCard: React.FC<FeedingCardProps> = ({
 							value={editData.water}
 							onChange={(e) => setEditData({ ...editData, water: Number(e.target.value) })}
 							placeholder="0"
-							icon={Droplet}
-							min="0"
-							max="1000"
 						/>
 					</div>
 					<div className="grid grid-cols-2 gap-4">
@@ -172,9 +166,6 @@ const FeedingCard: React.FC<FeedingCardProps> = ({
 							value={editData.temp}
 							onChange={(e) => setEditData({ ...editData, temp: Number(e.target.value) })}
 							placeholder="75"
-							icon={Thermometer}
-							min="32"
-							max="120"
 						/>
 					</div>
 					<Textarea

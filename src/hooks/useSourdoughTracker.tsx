@@ -6,11 +6,11 @@ import { useAuth } from './useAuth'
 
 export const useSourdoughTracker = () => {
 	// State for data from MongoDB
+    const { user, token, isAuthenticated } = useAuth()
 	const [starters, setStarters] = useState<Starter[]>([])
 	const [recipes, setRecipes] = useState<Recipe[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
-    const { user } = useAuth()
 
 	// UI state (not persisted - resets on refresh)
 	const [uiState, setUiState] = useState({
@@ -59,23 +59,40 @@ export const useSourdoughTracker = () => {
 
 	// Data fetching functions
 	const fetchStarters = async () => {
-		try {
-			setLoading(true)
-			setError(null)
-			const startersData = await api.getAllStarters() // ← Changed to api
-			setStarters(startersData)
-			
-			// Set active starter if none is set
-			if (startersData.length > 0 && !uiState.activeStarter) {
-				updateUiState({ activeStarter: startersData[0].id })
-			}
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to fetch starters')
-			console.error('Error fetching starters:', err)
-		} finally {
-			setLoading(false)
-		}
-	}
+        try {
+            // Check if we have a token before attempting to fetch
+            if (!api.hasToken()) {
+                console.log('No token available, skipping starter fetch')
+                return
+            }
+
+            setLoading(true)
+            setError(null)
+            
+            console.log('Fetching starters...')
+            const startersData = await api.getAllStarters()
+            console.log('Fetched starters:', startersData.length)
+            setStarters(startersData)
+            
+            // Set active starter if none is set
+            if (startersData.length > 0 && !uiState.activeStarter) {
+                updateUiState({ activeStarter: startersData[0].id })
+            }
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : 'Failed to fetch starters'
+            setError(errorMessage)
+            console.error('Error fetching starters:', err)
+            
+            // If it's an auth error, don't keep retrying
+            if (errorMessage.includes('Authentication required') || errorMessage.includes('Session expired')) {
+                // User needs to log in again
+                console.log('Authentication error detected, user needs to log in')
+            }
+        } finally {
+            setLoading(false)
+        }
+    }
+
 
 	const fetchRecipes = async () => {
 		try {
@@ -100,12 +117,43 @@ export const useSourdoughTracker = () => {
 	}
 
 	// Initial data load
-	useEffect(() => {
-		const loadData = async () => {
-			await Promise.all([fetchStarters(), fetchRecipes()])
-		}
-		loadData()
-	}, [])
+	const loadData = useCallback(async () => {
+        // Only load data if authenticated
+        if (!isAuthenticated || !token) {
+            console.log('Not authenticated, skipping data load')
+            return
+        }
+
+        // Double-check API service has the token
+        if (!api.hasToken()) {
+            console.log('API service missing token, syncing...')
+            api.setToken(token)
+        }
+
+        try {
+            setLoading(true)
+            await Promise.all([
+                fetchStarters(),
+                // fetchRecipes() if you have it
+            ])
+        } catch (err) {
+            console.error('Error loading data:', err)
+        } finally {
+            setLoading(false)
+        }
+    }, [isAuthenticated, token])
+
+    useEffect(() => {
+        if (isAuthenticated && token) {
+            console.log('User authenticated, loading data...')
+            loadData()
+        } else if (!isAuthenticated) {
+            // Clear data when logged out
+            console.log('User not authenticated, clearing data')
+            setStarters([])
+            setError(null)
+        }
+    }, [isAuthenticated, token, loadData])
 
 	// Set active starter when starters load
 	useEffect(() => {
